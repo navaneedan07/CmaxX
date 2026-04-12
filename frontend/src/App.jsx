@@ -3,7 +3,7 @@ import Chat from "./components/Chat";
 import MemoryPanel from "./components/MemoryPanel";
 import CustomerCarousel from "./components/CustomerCarousel";
 
-const API_URL = "http://localhost:5000";
+const API_URL = "http://localhost:3001";
 
 const MOCK_MEMORIES = {
   priya: {
@@ -52,6 +52,31 @@ const MOCK_MEMORIES = {
     health_signal: "engaged",
     goal_achieved: false,
     notes: "Senior developer, very technical, prefers code examples over explanations, doesn't need hand-holding"
+  },
+  "customer-sarah": {
+    stated_goal: "Get all 5 team members active and process the first 50 support tickets",
+    current_stage: "adoption",
+    completed_steps: ["Created account and set up workspace", "Connected Zendesk via API — 847 tickets imported", "Onboarded 3 of 5 team members"],
+    blockers: [
+      { issue: "CSV import failed — Windows-1252 encoding", resolution: "Resolved via Zendesk API integration", date: "2026-03-22" }
+    ],
+    last_contact: "31 of 50 tickets processed (62%). Tom & Priya on holiday, invites pending.",
+    health_signal: "engaged",
+    goal_achieved: false,
+    notes: "Prefers async communication. Technically proficient, no hand-holding needed."
+  },
+  "customer-raj": {
+    stated_goal: "Automate email routing to the right department with no manual sorting",
+    current_stage: "onboarding",
+    completed_steps: [],
+    blockers: [
+      { issue: "Rules Engine not firing — emails going to default inbox", resolution: "Not yet resolved", date: "2026-03-19" },
+      { issue: "Tried correcting AND/OR logic — still not working", resolution: "Not yet resolved", date: "2026-03-20" }
+    ],
+    last_contact: "No login in 8 days. Mentioned thinking about switching to a simpler tool.",
+    health_signal: "at_risk",
+    goal_achieved: false,
+    notes: "Developer — prefers API/webhook approach over UI tools. Offer webhook-based routing alternative."
   }
 };
 
@@ -107,7 +132,8 @@ export default function App() {
 
   const handleCustomerSwitch = (id) => {
     setCustomerId(id);
-    setMemory(MOCK_MEMORIES[id]);
+    // Show mock as placeholder; useEffect replaces with live backend data
+    setMemory(MOCK_MEMORIES[id] ?? null);
     setMessages([]);
   };
 

@@ -116,7 +116,10 @@ async function callGroq(systemPrompt, conversationHistory, userMessage) {
  */
 function parseGroqResponse(rawText) {
   const retainMatch = rawText.match(/<retain>([\s\S]*?)<\/retain>/i);
-  const reply = rawText.replace(/<retain>[\s\S]*?<\/retain>/gi, '').trim();
+  const reply = rawText
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')   // strip qwen3 reasoning chain
+    .replace(/<retain>[\s\S]*?<\/retain>/gi, '')  // strip retain block
+    .trim();
 
   let retainData = null;
   if (retainMatch) {

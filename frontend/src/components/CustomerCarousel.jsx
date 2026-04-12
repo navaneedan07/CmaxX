@@ -2,10 +2,12 @@ import React from "react";
 import { motion } from "framer-motion";
 
 const customers = [
-  { id: "priya", name: "Priya", role: "Ops Manager", color: "#7C6AF7", initials: "PS" },
-  { id: "james", name: "James", role: "Founder", color: "#1D9E75", initials: "JO" },
-  { id: "lisa", name: "Lisa", role: "Enterprise", color: "#D85A30", initials: "LT" },
-  { id: "david", name: "David", role: "Developer", color: "#378ADD", initials: "DC" }
+  { id: "priya",           name: "Priya",  role: "Ops Manager", color: "#7C6AF7", initials: "PS" },
+  { id: "james",           name: "James",  role: "Founder",     color: "#1D9E75", initials: "JO" },
+  { id: "lisa",            name: "Lisa",   role: "Enterprise",  color: "#D85A30", initials: "LT" },
+  { id: "david",           name: "David",  role: "Developer",   color: "#378ADD", initials: "DC" },
+  { id: "customer-sarah",  name: "Sarah",  role: "Team Lead",   color: "#E8A020", initials: "SM" },
+  { id: "customer-raj",    name: "Raj",    role: "CTO",         color: "#E24B4A", initials: "RP" },
 ];
 
 export default function CustomerCarousel({ currentId, setCustomerId }) {

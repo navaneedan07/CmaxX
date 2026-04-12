@@ -16,6 +16,7 @@
 import { Router } from 'express';
 import { recallCustomer, retainForCustomer, listCustomerMemories } from '../services/hindsight.js';
 import { askGroq } from '../services/groq.js';
+import { buildStructuredMemory } from '../services/memoryTransform.js';
 
 export const chatRouter = Router();
 
@@ -65,12 +66,13 @@ chatRouter.post('/', async (req, res) => {
       });
     }
 
-    // ── Step 5: Fetch updated memory for the UI panel ─────────────────────────
-    const updatedMemory = useMemory ? await listCustomerMemories(customerId) : [];
+    // ── Step 5: Build structured memory for the UI panel ─────────────────────
+    const rawMemories = useMemory ? await listCustomerMemories(customerId) : [];
+    const memory = buildStructuredMemory(rawMemories, useMemory ? retainData : null);
 
     return res.json({
       reply,
-      memory: updatedMemory,
+      memory,
       retainData: retainData ?? null,
       customerId,
       memoryEnabled: useMemory,

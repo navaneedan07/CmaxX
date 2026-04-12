@@ -8,6 +8,7 @@
 
 import { Router } from 'express';
 import { listCustomerMemories, recallCustomer } from '../services/hindsight.js';
+import { buildStructuredMemory } from '../services/memoryTransform.js';
 
 export const customerRouter = Router();
 
@@ -19,18 +20,9 @@ customerRouter.get('/:id', async (req, res) => {
   }
 
   try {
-    // Get both raw stored memories AND a recall query for "overall summary"
-    const [memories, recalledSummary] = await Promise.all([
-      listCustomerMemories(customerId),
-      recallCustomer(customerId, 'customer goal stage health blockers progress'),
-    ]);
-
-    return res.json({
-      customerId,
-      memories,        // Raw fact list for the memory panel
-      summary: recalledSummary, // Recalled/synthesised view for the agent
-      timestamp: new Date().toISOString(),
-    });
+    const memories = await listCustomerMemories(customerId);
+    const structured = buildStructuredMemory(memories);
+    return res.json(structured);
   } catch (err) {
     console.error(`[Customer] Error fetching memory for ${customerId}:`, err.message);
     return res.status(500).json({

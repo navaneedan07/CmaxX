@@ -2,24 +2,30 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const CUSTOMER_NAMES = {
-  priya: "Priya Sharma",
-  james: "James Okafor",
-  lisa: "Lisa Tran",
-  david: "David Chen"
+  priya:           "Priya Sharma",
+  james:           "James Okafor",
+  lisa:            "Lisa Tran",
+  david:           "David Chen",
+  "customer-sarah": "Sarah Mitchell",
+  "customer-raj":   "Raj Patel",
 };
 
 const AVATARS = {
-  priya: "PS",
-  james: "JO",
-  lisa: "LT",
-  david: "DC"
+  priya:           "PS",
+  james:           "JO",
+  lisa:            "LT",
+  david:           "DC",
+  "customer-sarah": "SM",
+  "customer-raj":   "RP",
 };
 
 const AVATAR_COLORS = {
-  priya: "#7C6AF7",
-  james: "#1D9E75",
-  lisa: "#D85A30",
-  david: "#378ADD"
+  priya:           "#7C6AF7",
+  james:           "#1D9E75",
+  lisa:            "#D85A30",
+  david:           "#378ADD",
+  "customer-sarah": "#E8A020",
+  "customer-raj":   "#E24B4A",
 };
 
 export default function Chat({ messages, sendMessage, isLoading, customerId }) {
