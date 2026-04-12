@@ -6,8 +6,8 @@ node_modules
 .idea
 *.log
 npm-debug.log*
-Backend/.env
-Backend/.env.*
+backend/.env
+backend/.env.*
 .env
 .env.*
 frontend/dist

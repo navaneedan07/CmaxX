@@ -39,7 +39,7 @@ Or run each service separately:
 Backend:
 
 ```bash
-cd Backend
+cd backend
 npm install
 npm run dev
 ```
@@ -66,7 +66,7 @@ http://localhost:3001/status
 
 ## Environment
 
-Create `Backend/.env`:
+Create `backend/.env`:
 
 ```env
 HINDSIGHT_API_KEY=your_hindsight_key
@@ -76,7 +76,7 @@ PORT=3001
 NODE_ENV=development
 ```
 
-`Backend/.env` is ignored by git. Do not commit real keys.
+`backend/.env` is ignored by git. Do not commit real keys.
 
 ## Production Setup
 
@@ -120,7 +120,7 @@ npm ci
 npm run build
 ```
 
-2. Configure backend env (copy from `Backend/.env.example`):
+2. Configure backend env (copy from `backend/.env.example`):
 
 ```env
 NODE_ENV=production
@@ -133,7 +133,7 @@ GROQ_API_KEY=...
 3. Start backend (serves API and `frontend/dist` when present):
 
 ```bash
-cd Backend
+cd backend
 npm ci
 npm start
 ```
