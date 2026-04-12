@@ -1,0 +1,24 @@
+{
+  "name": "cmaxx-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "install:all": "npm install && npm --prefix Backend install && npm --prefix frontend install",
+    "app:dev": "concurrently -k -n backend,frontend -c cyan,magenta \"npm --prefix Backend run dev:clean\" \"npm --prefix frontend run dev:clean\"",
+    "app:prod": "npm --prefix frontend run build && npm --prefix Backend run start:prod",
+    "docker:build": "docker build -t cmaxx:latest .",
+    "docker:run": "docker run --rm -p 3001:3001 --env-file Backend/.env cmaxx:latest",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down",
+    "start:clean": "npm --prefix Backend run start:clean",
+    "dev:clean": "npm --prefix Backend run dev:clean",
+    "backend:start": "npm --prefix Backend run start",
+    "backend:dev": "npm --prefix Backend run dev",
+    "frontend:dev": "npm --prefix frontend run dev:clean",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:lint": "npm --prefix frontend run lint"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

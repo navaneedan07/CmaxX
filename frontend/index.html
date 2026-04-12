@@ -1,142 +1,16 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Customer Success Agent</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-
-  <!-- ─── Header ──────────────────────────────────────────────────────────── -->
-  <header>
-    <div class="header-title">
-      <span class="dot"></span>
-      CS Agent
-    </div>
-
-    <div class="header-controls">
-      <!-- Customer selector -->
-      <div class="customer-select-group">
-        <label for="customerSelect">Customer</label>
-        <select id="customerSelect">
-          <option value="customer-sarah">Sarah (engaged, 62% to goal)</option>
-          <option value="customer-raj">Raj (at-risk, stuck on blocker)</option>
-          <option value="customer-new-demo">New Customer (no history)</option>
-          <option value="custom">Custom ID…</option>
-        </select>
-        <input
-          type="text"
-          id="customIdInput"
-          placeholder="Enter customer ID…"
-          style="display:none"
-        />
-      </div>
-
-      <!-- Memory toggle -->
-      <div class="memory-toggle-group">
-        <span id="memoryBadge" class="on">Memory ON</span>
-        <div class="toggle-wrap">
-          <span class="toggle-label-off">OFF</span>
-          <label class="switch">
-            <input type="checkbox" id="memoryToggle" checked />
-            <span class="slider"></span>
-          </label>
-          <span class="toggle-label-on">ON</span>
-        </div>
-      </div>
-    </div>
-  </header>
-
-  <!-- ─── Main ─────────────────────────────────────────────────────────────── -->
-  <div class="main">
-
-    <!-- Chat panel -->
-    <div class="chat-panel">
-      <div class="chat-messages" id="chatMessages"></div>
-      <div class="chat-input-bar">
-        <textarea
-          id="messageInput"
-          placeholder="Message the agent… (Enter to send, Shift+Enter for newline)"
-          rows="1"
-        ></textarea>
-        <button class="send-btn" id="sendBtn">
-          Send ↑
-        </button>
-      </div>
-    </div>
-
-    <!-- Memory panel -->
-    <div class="memory-panel">
-      <div class="memory-header">
-        <h2>What I Remember</h2>
-      </div>
-
-      <div id="memoryOffOverlay">
-        Memory is OFF — agent has no context
-      </div>
-
-      <div class="memory-sections">
-
-        <div class="mem-section">
-          <div class="mem-section-title">Stated Goal</div>
-          <div class="mem-value empty" id="mem-goal">Not stated yet</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Current Stage</div>
-          <span class="badge stage-onboarding" id="mem-stage">onboarding</span>
-        </div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Health Signal</div>
-          <span class="badge health-engaged" id="mem-health">engaged</span>
-        </div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Goal Achieved</div>
-          <span class="badge goal-no" id="mem-goal-achieved">Not yet</span>
-        </div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Last Contact</div>
-          <div class="mem-value empty" id="mem-last-contact">—</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Active Blockers</div>
-          <div id="mem-blockers">
-            <span class="mem-value empty">None recorded</span>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Latest Note</div>
-          <div class="mem-value empty" id="mem-notes">—</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="mem-section">
-          <div class="mem-section-title">Stored Memories (Hindsight)</div>
-          <div id="mem-raw">
-            <span class="mem-value empty">No memories yet — start chatting.</span>
-          </div>
-        </div>
-
-      </div>
-    </div>
-
-  </div>
-
-  <script src="app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <title>CmaxX - Customer Success Agent</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
