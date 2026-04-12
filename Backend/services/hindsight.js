@@ -8,11 +8,18 @@
 
 import { HindsightClient } from '@vectorize-io/hindsight-client';
 
-// ─── Client singleton ────────────────────────────────────────────────────────
-const client = new HindsightClient({
-  baseUrl: process.env.HINDSIGHT_BASE_URL, // e.g. https://api.hindsight.vectorize.io
-  apiKey: process.env.HINDSIGHT_API_KEY,
-});
+// ─── Client singleton (lazy) ─────────────────────────────────────────────────
+// Initialized on first use so dotenv.config() in server.js has already run.
+let _client = null;
+function getClient() {
+  if (!_client) {
+    _client = new HindsightClient({
+      baseUrl: process.env.HINDSIGHT_BASE_URL,
+      apiKey:  process.env.HINDSIGHT_API_KEY,
+    });
+  }
+  return _client;
+}
 
 // Bank name for a given customer.  Each customer is their own isolated bank.
 function bankId(customerId) {
@@ -36,7 +43,7 @@ export async function ensureBankExists() {
  */
 export async function ensureCustomerBank(customerId) {
   try {
-    await client.createBank(bankId(customerId), {
+    await getClient().createBank(bankId(customerId), {
       name: `Customer ${customerId}`,
       mission: `You are a Customer Success Agent memory bank for customer ${customerId}. 
 Track their stated goals, current onboarding stage, completed steps, blockers they've hit, 
@@ -65,7 +72,7 @@ export async function recallCustomer(customerId, query = 'customer history goals
   await ensureCustomerBank(customerId);
 
   try {
-    const response = await client.recall(bankId(customerId), query, {
+    const response = await getClient().recall(bankId(customerId), query, {
       budget: 'high',  // use all four retrieval strategies (TEMPR)
       maxTokens: 2048,
     });
@@ -88,7 +95,7 @@ export async function recallCustomer(customerId, query = 'customer history goals
 export async function retainForCustomer(customerId, content, metadata = {}) {
   await ensureCustomerBank(customerId);
 
-  await client.retain(bankId(customerId), content, {
+  await getClient().retain(bankId(customerId), content, {
     context: 'customer-success-conversation',
     metadata,
     async: true, // fire-and-forget so the HTTP response isn't delayed
@@ -103,7 +110,7 @@ export async function listCustomerMemories(customerId) {
   await ensureCustomerBank(customerId);
 
   try {
-    const response = await client.listMemories(bankId(customerId), {
+    const response = await getClient().listMemories(bankId(customerId), {
       limit: 50,
     });
     return response.memories ?? response.items ?? [];

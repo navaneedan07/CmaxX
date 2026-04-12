@@ -20,7 +20,8 @@ import { askGroq } from '../services/groq.js';
 export const chatRouter = Router();
 
 chatRouter.post('/', async (req, res) => {
-  const { customerId, message, history = [] } = req.body;
+  // useMemory defaults to true — set false to run stateless (demo toggle)
+  const { customerId, message, history = [], useMemory = true } = req.body;
 
   // ── Validate ────────────────────────────────────────────────────────────────
   if (!customerId || typeof customerId !== 'string') {
@@ -31,16 +32,21 @@ chatRouter.post('/', async (req, res) => {
   }
 
   try {
-    // ── Step 1: Recall ─────────────────────────────────────────────────────────
-    console.log(`[Chat] Recalling memory for customer: ${customerId}`);
-    const memories = await recallCustomer(customerId, message);
-    console.log(`[Chat] Recalled ${memories.length} memory items`);
+    // ── Step 1: Recall (skipped when memory toggle is OFF) ─────────────────────
+    let memories = [];
+    if (useMemory) {
+      console.log(`[Chat] Recalling memory for customer: ${customerId}`);
+      memories = await recallCustomer(customerId, message);
+      console.log(`[Chat] Recalled ${memories.length} memory items`);
+    } else {
+      console.log(`[Chat] Memory OFF — skipping recall for ${customerId}`);
+    }
 
     // ── Step 2 + 3: Build prompt → call Groq ──────────────────────────────────
-    const { reply, retainData } = await askGroq(memories, history, message, customerId);
+    const { reply, retainData } = await askGroq(memories, history, message, customerId, useMemory);
 
-    // ── Step 4: Retain ─────────────────────────────────────────────────────────
-    if (retainData) {
+    // ── Step 4: Retain (skipped when memory toggle is OFF) ─────────────────────
+    if (useMemory && retainData) {
       const retainContent = [
         retainData.summary,
         retainData.goalMentioned ? `Customer's goal: ${retainData.goalMentioned}` : null,
@@ -53,20 +59,21 @@ chatRouter.post('/', async (req, res) => {
 
       console.log(`[Chat] Retaining for ${customerId}: ${retainContent}`);
       await retainForCustomer(customerId, retainContent, {
-        stage: retainData.stage,
-        health: retainData.health,
-        goalAchieved: retainData.goalAchieved,
+        stage:        String(retainData.stage       ?? ''),
+        health:       String(retainData.health      ?? ''),
+        goalAchieved: String(retainData.goalAchieved ?? 'false'),
       });
     }
 
     // ── Step 5: Fetch updated memory for the UI panel ─────────────────────────
-    const updatedMemory = await listCustomerMemories(customerId);
+    const updatedMemory = useMemory ? await listCustomerMemories(customerId) : [];
 
     return res.json({
       reply,
       memory: updatedMemory,
       retainData: retainData ?? null,
       customerId,
+      memoryEnabled: useMemory,
     });
   } catch (err) {
     console.error('[Chat] Error:', err.message);

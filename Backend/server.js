@@ -1,9 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { chatRouter } from './routes/chat.js';
 import { customerRouter } from './routes/customer.js';
 import { ensureBankExists } from './services/hindsight.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 dotenv.config();
 
@@ -23,6 +28,9 @@ app.use((req, _res, next) => {
 // ─── Routes ─────────────────────────────────────────────────────────────────
 app.use('/chat', chatRouter);
 app.use('/customer', customerRouter);
+
+// ─── Static frontend ────────────────────────────────────────────────────────
+app.use(express.static(join(__dirname, '../Frontend')));
 
 // Health check
 app.get('/health', (_req, res) => {

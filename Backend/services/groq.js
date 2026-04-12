@@ -20,11 +20,16 @@ const TIMEOUT_MS = 15_000;
  * @param {Array}  memories   — results from hindsight.recallCustomer()
  * @param {string} customerId
  */
-function buildSystemPrompt(memories, customerId) {
-  const memorySection =
-    memories.length > 0
-      ? `## What You Remember About This Customer\n${memories.map((m) => `- ${m.text ?? m}`).join('\n')}`
-      : `## Customer History\nThis is a new customer. No prior history exists yet.`;
+function buildSystemPrompt(memories, customerId, useMemory = true) {
+  let memorySection;
+
+  if (!useMemory) {
+    memorySection = `## Memory Status\nMemory is DISABLED. You have no knowledge of this customer's history. Treat every message as a first-time interaction.`;
+  } else if (memories.length > 0) {
+    memorySection = `## What You Remember About This Customer\n${memories.map((m) => `- ${m.text ?? m}`).join('\n')}`;
+  } else {
+    memorySection = `## Customer History\nThis is a new customer. No prior history exists yet.`;
+  }
 
   return `You are a proactive Customer Success Agent. Your job is NOT to react to problems — it is to guide customers to their first success milestone before they know they need help.
 
@@ -42,7 +47,7 @@ ${customerId}
 ${memorySection}
 
 ## After Every Response
-At the END of your reply (hidden from the user), add a JSON block wrapped in <retain> tags. This will be saved to memory. Format:
+At the END of your reply (hidden from the user), add a JSON block wrapped in <retain> tags. Format:
 <retain>
 {
   "summary": "One-sentence summary of what happened in this turn",
@@ -87,8 +92,6 @@ async function callGroq(systemPrompt, conversationHistory, userMessage) {
         messages,
         temperature: 0.7,
         max_tokens: 1024,
-        // qwen3-32b supports thinking mode — disable for speed in a hackathon
-        thinking: { type: 'disabled' },
       }),
     });
 
@@ -132,8 +135,8 @@ function parseGroqResponse(rawText) {
  * Main export — called by the /chat route.
  * Retries once on transient Groq errors before giving up.
  */
-export async function askGroq(memories, conversationHistory, userMessage, customerId) {
-  const systemPrompt = buildSystemPrompt(memories, customerId);
+export async function askGroq(memories, conversationHistory, userMessage, customerId, useMemory = true) {
+  const systemPrompt = buildSystemPrompt(memories, customerId, useMemory);
 
   let lastErr;
   for (let attempt = 1; attempt <= 2; attempt++) {
