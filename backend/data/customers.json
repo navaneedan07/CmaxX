@@ -16,5 +16,14 @@
     "email": "",
     "createdAt": "2026-04-13T08:06:53.889Z",
     "updatedAt": "2026-04-13T08:06:53.889Z"
+  },
+  {
+    "customerId": "customer-new-demo",
+    "name": "customer-new-demo",
+    "role": "",
+    "company": "",
+    "email": "",
+    "createdAt": "2026-04-13T12:20:32.351Z",
+    "updatedAt": "2026-04-13T12:20:32.351Z"
   }
 ]

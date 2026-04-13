@@ -6,11 +6,11 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
-    "dev:clean": "node --watch server.js",
+    "dev": "node server.js",
+    "dev:clean": "node server.js",
     "start:clean": "node server.js",
     "start:prod": "node server.js",
-    "test": "vitest run"
+    "test": "vitest run --pool threads"
   },
   "dependencies": {
     "@vectorize-io/hindsight-client": "^0.5.0",

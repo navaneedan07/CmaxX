@@ -23,11 +23,12 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
+  height: 100%;
+  /* FIX: use height:100% not min-height so the viewport is capped */
+  overflow: hidden;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
   color: var(--ink);
-  background:
-    linear-gradient(160deg, #fff9eb 0%, #ffeef7 42%, #e8f8ff 100%);
+  background: linear-gradient(160deg, #fff9eb 0%, #ffeef7 42%, #e8f8ff 100%);
 }
 
 h1,
@@ -43,8 +44,9 @@ button {
   font: inherit;
 }
 
+/* ── screens ── */
 .screen {
-  min-height: 100vh;
+  height: 100%;
   width: 100%;
   padding: clamp(12px, 2vw, 24px);
   overflow-x: hidden;
@@ -58,8 +60,13 @@ button {
 .complete-screen {
   display: grid;
   place-items: center;
+  /* login/complete screens are not height-locked, let them scroll */
+  height: auto;
+  min-height: 100vh;
+  overflow: auto;
 }
 
+/* ── shared bordered elements ── */
 .clay-card,
 .login-card,
 .complete-card,
@@ -90,6 +97,7 @@ select,
   border-radius: var(--radius);
 }
 
+/* ── typography ── */
 h1 {
   font-family: "Chakra Petch", sans-serif;
   font-size: clamp(1.8rem, 4.2vw, 3.4rem);
@@ -122,6 +130,7 @@ h3 {
   color: #2e2e2e;
 }
 
+/* ── forms ── */
 .grid-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -147,6 +156,7 @@ select {
   border-radius: var(--radius-sm);
 }
 
+/* ── buttons ── */
 button {
   min-height: 48px;
   padding: 10px 18px;
@@ -189,63 +199,105 @@ button:disabled {
   color: #7a0000;
 }
 
+/* ── status row & pills ── */
 .status-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  align-items: center;
+  margin-top: 0; /* reset; spacing handled by parent */
 }
 
 .pill,
 .mode-pill {
   border-radius: 999px;
-  padding: 7px 12px;
-  font-size: 0.78rem;
-  font-family: "Chakra Petch", monospace;
+  padding: 7px 14px;
+  font-size: 0.82rem;
+  font-family: "Space Grotesk", sans-serif;
+  font-weight: 600; /* FIX: match button/label weight so email pill isn't lighter */
   background: #fff;
+  white-space: nowrap;
 }
 
 .mode-pill.real_integrations {
   background: var(--lime);
 }
 
+/* ════════════════════════════════════════
+   WORKSPACE — the main full-height screen
+   ════════════════════════════════════════ */
 .workspace-screen {
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 12px;
-  min-height: 100dvh;
-  height: 100dvh;
-  overflow: hidden;
+  height: 100dvh;       /* exactly viewport height */
+  overflow: hidden;     /* nothing bleeds out */
+  padding: clamp(12px, 2vw, 24px);
 }
 
+/* ── top bar ── */
 .workspace-top {
   border-radius: var(--radius);
-  padding: 12px 14px;
+  padding: 12px 18px;
   background: linear-gradient(90deg, #fff6d9, #ffe6f3, #dff6ff);
   display: flex;
-  align-items: center;
+  align-items: center;   /* FIX: vertically centre every child */
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
+  /* ensure the bar doesn't shrink below its natural height */
+  flex-shrink: 0;
 }
 
+/* operator label + name live on the left */
+.workspace-top-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.workspace-top-left .eyebrow {
+  line-height: 1;
+  color: #555;
+}
+
+.workspace-top-left h2 {
+  line-height: 1.1;
+  font-size: clamp(1rem, 2vw, 1.45rem);
+}
+
+/* pills + sign-out button live on the right */
 .workspace-top .status-row {
-  margin-top: 0;
   justify-content: flex-end;
+  flex-wrap: nowrap; /* keep them in one row if space allows */
 }
 
+/* FIX: Sign out button should match pill sizing so row aligns */
+.workspace-top button {
+  min-height: 38px;
+  padding: 6px 16px;
+  font-size: 0.82rem;
+}
+
+/* ── two-column shell ── */
 .app-shell {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
   gap: 12px;
   align-items: stretch;
+  /* FIX: must be min-height:0 so children can shrink inside the grid row */
   min-height: 0;
   height: 100%;
+  overflow: hidden;
 }
 
+/* ── chat pane ── */
 .chat-pane,
 .memory-pane {
   border-radius: var(--radius);
+  /* FIX: overflow:hidden on pane level; scrolling is handled by .messages */
   overflow: hidden;
   height: 100%;
 }
@@ -255,8 +307,11 @@ button:disabled {
   flex-direction: column;
   min-width: 0;
   background: linear-gradient(180deg, #fffdfa, #fff4ec);
+  /* FIX: must allow internal flex children to size themselves */
+  min-height: 0;
 }
 
+/* ── chat sub-sections ── */
 .topbar,
 .customer-strip,
 .customer-hero,
@@ -264,10 +319,13 @@ button:disabled {
 .journey-footer {
   padding: 10px 12px;
   border-bottom: 2px solid #d5cec2;
+  /* these sections must NOT grow — they are fixed-height header/footer rows */
+  flex-shrink: 0;
 }
 
 .journey-footer {
-  border-bottom: 0;
+  border-bottom: none;
+  border-top: 2px solid #d5cec2;
 }
 
 .topbar {
@@ -276,6 +334,7 @@ button:disabled {
   gap: 8px;
 }
 
+/* ── brand ── */
 .brand {
   display: flex;
   align-items: center;
@@ -286,6 +345,7 @@ button:disabled {
 .brand-mark {
   width: 44px;
   height: 44px;
+  flex-shrink: 0;
   border-radius: 12px;
   border: 3px solid var(--line);
   box-shadow: 4px 4px 0 #121212;
@@ -320,6 +380,7 @@ button:disabled {
   box-shadow: none;
 }
 
+/* ── progress bar ── */
 .progress-wrap {
   margin-top: 2px;
   display: grid;
@@ -345,12 +406,12 @@ button:disabled {
   transition: width 220ms ease;
 }
 
+/* ── customer strip ── */
 .customer-strip {
   display: flex;
   gap: 10px;
   align-items: flex-end;
   flex-wrap: wrap;
-  overflow-x: visible;
 }
 
 .customer-strip label {
@@ -368,9 +429,12 @@ button:disabled {
 }
 
 .customer-actions > button {
+  flex: 1 1 150px;
+  justify-content: center;
   white-space: nowrap;
 }
 
+/* ── create customer form ── */
 .create-customer {
   margin: 10px 12px 0;
   padding: 12px;
@@ -379,6 +443,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .create-customer-head {
@@ -393,6 +458,7 @@ button:disabled {
   grid-column: span 1;
 }
 
+/* ── customer hero ── */
 .customer-hero {
   display: flex;
   align-items: center;
@@ -418,21 +484,27 @@ button:disabled {
   color: #454545;
 }
 
+/* ── messages area — THE KEY FIX ── */
 .messages {
+  /* FIX: flex:1 means "take all remaining height after fixed header/footer rows" */
   flex: 1 1 auto;
-  min-height: 180px;
+  min-height: 0;          /* FIX: allows flex child to shrink below content size */
+  overflow-y: auto;       /* FIX: scroll happens HERE, not on the outer page */
   padding: 12px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 10px;
   background: #fffdf8;
 }
 
+/* ── message bubbles ── */
 .bubble {
   max-width: min(780px, 92%);
   border-radius: 12px;
   padding: 11px 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .bubble.customer {
@@ -445,17 +517,20 @@ button:disabled {
   background: #fff;
 }
 
+/* ── composer (input + send) ── */
 .composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
 
+/* ── empty state ── */
 .empty-chat-state {
   margin: 12px;
   padding: 16px;
   background: #fff;
   flex: 1 1 auto;
+  min-height: 0;
 }
 
 .empty-chat-state h3 {
@@ -468,6 +543,17 @@ button:disabled {
   font-weight: 600;
 }
 
+.panel-notice {
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  border: 3px solid var(--line);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  background: #ffd9d9;
+  flex-shrink: 0;
+}
+
+/* ── memory pane ── */
 .memory-pane {
   padding: 10px;
   overflow-y: auto;
@@ -495,6 +581,7 @@ button:disabled {
   background: #ffd9d9;
 }
 
+/* ── health badge ── */
 .health {
   border: 2px solid #121212;
   border-radius: 999px;
@@ -513,6 +600,7 @@ button:disabled {
   background: #ffe89f;
 }
 
+/* ── memory block ── */
 .memory-block h2 {
   font-family: "Chakra Petch", sans-serif;
   font-size: 0.84rem;
@@ -534,6 +622,7 @@ button:disabled {
   display: block;
 }
 
+/* ── plan grid ── */
 .plan-grid {
   display: grid;
   grid-template-columns: minmax(90px, 0.85fr) minmax(0, 1.15fr);
@@ -545,6 +634,7 @@ button:disabled {
   font-size: 0.78rem;
 }
 
+/* ── summary grid (complete screen) ── */
 .summary-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -566,6 +656,10 @@ button:disabled {
   gap: 10px;
 }
 
+/* ════════════════════════════════════════
+   RESPONSIVE
+   ════════════════════════════════════════ */
+
 @media (max-width: 1220px) {
   .app-shell {
     grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
@@ -573,10 +667,17 @@ button:disabled {
 }
 
 @media (max-width: 960px) {
+  /* On small screens allow the workspace to scroll naturally */
   .workspace-screen {
     height: auto;
-    min-height: 100vh;
+    min-height: 100dvh;
     overflow: visible;
+  }
+
+  html,
+  body,
+  #root {
+    overflow: auto;
   }
 
   .workspace-top .status-row {
@@ -586,20 +687,31 @@ button:disabled {
   .app-shell {
     grid-template-columns: 1fr;
     height: auto;
+    overflow: visible;
   }
 
   .chat-pane,
   .memory-pane {
     height: auto;
+    overflow: visible;
+  }
+
+  /* On small screens messages can grow freely; page scroll takes over */
+  .messages {
+    overflow-y: visible;
+    max-height: none;
   }
 
   .customer-strip {
     flex-wrap: wrap;
-    overflow-x: visible;
   }
 
   .customer-actions {
     width: 100%;
+  }
+
+  .customer-actions > button {
+    flex-basis: calc(50% - 5px);
   }
 
   .grid-form,
@@ -610,5 +722,30 @@ button:disabled {
 
   .composer {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .customer-strip label,
+  .customer-actions > button {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .workspace-top,
+  .create-customer-head,
+  .memory-head,
+  .action-row {
+    align-items: flex-start;
+  }
+
+  .create-customer-head,
+  .memory-head,
+  .action-row {
+    flex-direction: column;
+  }
+
+  .workspace-top .status-row {
+    flex-wrap: wrap;
   }
 }

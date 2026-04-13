@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5173 --strictPort --open",
-    "dev:clean": "vite --port 5173 --strictPort --open",
-    "build": "vite build",
+    "dev": "vite --configLoader native --port 5173 --strictPort",
+    "dev:clean": "vite --configLoader native --port 5173 --strictPort",
+    "build": "vite build --configLoader native",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --configLoader native"
   },
   "dependencies": {
     "framer-motion": "^12.38.0",

@@ -10,6 +10,7 @@ export default defineConfig({
     proxy: {
       '/chat': 'http://localhost:3001',
       '/customer': 'http://localhost:3001',
+      '/customers': 'http://localhost:3001',
       '/health': 'http://localhost:3001',
       '/status': 'http://localhost:3001',
     },

@@ -40,13 +40,14 @@ export default function App() {
   });
 
   const customer = useMemo(() => customers.find((item) => item.customerId === customerId) ?? null, [customers, customerId]);
+  const customerName = customer?.name || "";
   const successPlan = useMemo(() => buildSuccessPlan(memory), [memory]);
   const latestAgentReply = useMemo(
     () => [...messages].reverse().find((m) => m.role === "agent")?.text || "",
     [messages]
   );
-  const safeBlockers = Array.isArray(memory.blockers) ? memory.blockers : [];
-  const safeCompleted = Array.isArray(memory.completed_steps) ? memory.completed_steps : [];
+  const safeBlockers = useMemo(() => (Array.isArray(memory.blockers) ? memory.blockers : []), [memory.blockers]);
+  const safeCompleted = useMemo(() => (Array.isArray(memory.completed_steps) ? memory.completed_steps : []), [memory.completed_steps]);
   const hasActiveCustomer = Boolean(customerId && customer);
   const unresolvedBlockers = useMemo(
     () => safeBlockers.filter((b) => !String(b.resolution || "").toLowerCase().includes("resolved") && !String(b.resolution || "").toLowerCase().includes("fixed") && String(b.resolution || "").toLowerCase() !== "done"),
@@ -90,13 +91,13 @@ export default function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           setMessages(parsed);
         } else {
-          setMessages([defaultGreeting(customer?.name || customerId)]);
+          setMessages([defaultGreeting(customerName || customerId)]);
         }
       } catch {
-        setMessages([defaultGreeting(customer?.name || customerId)]);
+        setMessages([defaultGreeting(customerName || customerId)]);
       }
     } else {
-      setMessages([defaultGreeting(customer?.name || customerId)]);
+      setMessages([defaultGreeting(customerName || customerId)]);
     }
 
     const controller = new AbortController();
@@ -133,7 +134,7 @@ export default function App() {
       });
 
     return () => controller.abort();
-  }, [customerId, hasActiveCustomer]);
+  }, [customerId, customerName, hasActiveCustomer]);
 
   useEffect(() => {
     localStorage.setItem(MEMORY_TOGGLE_KEY, String(useMemory));
@@ -153,8 +154,8 @@ export default function App() {
         const nextCustomers = Array.isArray(data.customers) ? data.customers : [];
         setCustomers(nextCustomers);
 
-        if (!customerId && nextCustomers.length > 0) {
-          setCustomerId(nextCustomers[0].customerId);
+        if (nextCustomers.length > 0) {
+          setCustomerId((current) => current || nextCustomers[0].customerId);
         }
 
         if (nextCustomers.length === 0) {
@@ -236,7 +237,7 @@ export default function App() {
         setMemory({ ...emptyMemory(), ...data.memory });
       }
 
-      if (Boolean(data?.retainData?.goalAchieved)) {
+      if (data?.retainData?.goalAchieved) {
         setSessionGoalAchieved(true);
       }
     } catch (error) {
@@ -653,6 +654,8 @@ export default function App() {
           </form>
         )}
 
+        {flowNotice && <p className="flow-notice panel-notice">{flowNotice}</p>}
+
         {hasActiveCustomer ? (
           <>
             <div className="customer-hero">
@@ -689,7 +692,6 @@ export default function App() {
               <button type="button" className="secondary" onClick={completeJourney} disabled={!journey.canComplete && !memory.goal_achieved}>
                 Mark Milestone Complete
               </button>
-              {flowNotice && <p className="flow-notice">{flowNotice}</p>}
             </div>
           </>
         ) : (
@@ -856,11 +858,29 @@ function emptyMemory() {
 }
 
 function avatarForCustomer(seed) {
-  const code = Math.abs(
-    Array.from(String(seed || 'customer')).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
-  );
-  const id = (code % 70) + 1;
-  return `https://i.pravatar.cc/160?img=${id}`;
+  const source = String(seed || "customer").trim() || "customer";
+  const initials = source
+    .split(/[\s-_]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "CS";
+  const code = Math.abs(Array.from(source).reduce((acc, ch) => acc + ch.charCodeAt(0), 0));
+  const hues = [(code * 7) % 360, (code * 11 + 40) % 360];
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="${initials}">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="hsl(${hues[0]} 90% 72%)" />
+          <stop offset="100%" stop-color="hsl(${hues[1]} 85% 66%)" />
+        </linearGradient>
+      </defs>
+      <rect width="160" height="160" rx="40" fill="url(#g)" />
+      <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle" font-family="Chakra Petch, Arial, sans-serif" font-size="58" font-weight="700" fill="#121212">${initials}</text>
+    </svg>
+  `.trim();
+
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
 function MemoryBlock({ title, children }) {
