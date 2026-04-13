@@ -7,8 +7,9 @@
  */
 
 import { Router } from 'express';
-import { listCustomerMemories, recallCustomer } from '../services/hindsight.js';
+import { listCustomerMemories } from '../services/hindsight.js';
 import { buildStructuredMemory } from '../services/memoryTransform.js';
+import { getCustomer, touchCustomer } from '../services/customerRegistry.js';
 
 export const customerRouter = Router();
 
@@ -20,9 +21,11 @@ customerRouter.get('/:id', async (req, res) => {
   }
 
   try {
+    await touchCustomer(customerId);
+    const profile = await getCustomer(customerId);
     const memories = await listCustomerMemories(customerId);
     const structured = buildStructuredMemory(memories);
-    return res.json(structured);
+    return res.json({ ...structured, profile: profile ?? null });
   } catch (err) {
     console.error(`[Customer] Error fetching memory for ${customerId}:`, err.message);
     return res.status(500).json({

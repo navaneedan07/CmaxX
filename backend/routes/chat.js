@@ -17,6 +17,8 @@ import { Router } from 'express';
 import { recallCustomer, retainForCustomer, listCustomerMemories } from '../services/hindsight.js';
 import { askGroq } from '../services/groq.js';
 import { buildStructuredMemory } from '../services/memoryTransform.js';
+import { normalizeRetainData } from '../services/retainSchema.js';
+import { touchCustomer } from '../services/customerRegistry.js';
 
 export const chatRouter = Router();
 
@@ -33,6 +35,8 @@ chatRouter.post('/', async (req, res) => {
   }
 
   try {
+    await touchCustomer(customerId);
+
     // ── Step 1: Recall (skipped when memory toggle is OFF) ─────────────────────
     let memories = [];
     if (useMemory) {
@@ -45,35 +49,37 @@ chatRouter.post('/', async (req, res) => {
 
     // ── Step 2 + 3: Build prompt → call Groq ──────────────────────────────────
     const { reply, retainData } = await askGroq(memories, history, message, customerId, useMemory);
+    const normalizedRetain = retainData ? normalizeRetainData(retainData) : { valid: false, data: null };
+    const safeRetainData = normalizedRetain.valid ? normalizedRetain.data : null;
 
     // ── Step 4: Retain (skipped when memory toggle is OFF) ─────────────────────
-    if (useMemory && retainData) {
+    if (useMemory && safeRetainData) {
       const retainContent = [
-        retainData.summary,
-        retainData.goalMentioned ? `Customer's goal: ${retainData.goalMentioned}` : null,
-        retainData.newBlocker ? `New blocker: ${retainData.newBlocker}` : null,
-        retainData.blockerResolved ? `Resolved blocker: ${retainData.blockerResolved}` : null,
-        retainData.goalAchieved ? `Customer achieved their goal!` : null,
+        safeRetainData.summary,
+        safeRetainData.goalMentioned ? `Customer's goal: ${safeRetainData.goalMentioned}` : null,
+        safeRetainData.newBlocker ? `New blocker: ${safeRetainData.newBlocker}` : null,
+        safeRetainData.blockerResolved ? `Resolved blocker: ${safeRetainData.blockerResolved}` : null,
+        safeRetainData.goalAchieved ? `Customer achieved their goal!` : null,
       ]
         .filter(Boolean)
         .join('. ');
 
       console.log(`[Chat] Retaining for ${customerId}: ${retainContent}`);
       await retainForCustomer(customerId, retainContent, {
-        stage:        String(retainData.stage       ?? ''),
-        health:       String(retainData.health      ?? ''),
-        goalAchieved: String(retainData.goalAchieved ?? 'false'),
+        stage:        String(safeRetainData.stage       ?? ''),
+        health:       String(safeRetainData.health      ?? ''),
+        goalAchieved: String(safeRetainData.goalAchieved ?? 'false'),
       });
     }
 
     // ── Step 5: Build structured memory for the UI panel ─────────────────────
     const rawMemories = useMemory ? await listCustomerMemories(customerId) : [];
-    const memory = buildStructuredMemory(rawMemories, useMemory ? retainData : null);
+    const memory = buildStructuredMemory(rawMemories, useMemory ? safeRetainData : null);
 
     return res.json({
       reply,
       memory,
-      retainData: retainData ?? null,
+      retainData: safeRetainData ?? null,
       customerId,
       memoryEnabled: useMemory,
     });

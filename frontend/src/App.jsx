@@ -1,155 +1,103 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
-const customers = [
-  {
-    customerId: "priya",
-    name: "Priya Sharma",
-    role: "SaaS ops manager",
-    avatar:
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80",
-    stated_goal: "Automate invoice processing to reduce manual data entry by 80%",
-    current_stage: "adoption",
-    completed_steps: [
-      "Completed account setup",
-      "Connected billing software",
-      "Processed first 10 invoices manually"
-    ],
-    blockers: [
-      {
-        issue: "Manual CSV import failed - file format mismatch",
-        resolution: "Not yet resolved",
-        date: "2025-04-08"
-      },
-      {
-        issue: "Tried converting file to UTF-8 - still failed",
-        resolution: "Not yet resolved",
-        date: "2025-04-10"
-      }
-    ],
-    last_contact:
-      "Tried two workarounds for file format issue, neither worked. Customer frustrated but still engaged.",
-    health_signal: "engaged",
-    goal_achieved: false,
-    notes:
-      "SaaS ops manager, team of 4, very process-oriented, prefers step-by-step guidance"
-  },
-  {
-    customerId: "james",
-    name: "James Okafor",
-    role: "Startup founder",
-    avatar:
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80",
-    stated_goal: "Get all 8 team members fully onboarded and using the platform daily",
-    current_stage: "adoption",
-    completed_steps: [
-      "Invited all 8 team members",
-      "6 out of 8 members completed profile setup",
-      "Team completed first training session"
-    ],
-    blockers: [
-      {
-        issue: "2 team members stuck on login - SSO error on their devices",
-        resolution: "Pending IT check on their end",
-        date: "2025-04-09"
-      }
-    ],
-    last_contact:
-      "6 of 8 onboarded. SSO issue blocking 2 members. James said he'd follow up with IT.",
-    health_signal: "going_quiet",
-    goal_achieved: false,
-    notes:
-      "Startup founder, moves fast, doesn't like long explanations, hasn't replied in 3 days"
-  },
-  {
-    customerId: "lisa",
-    name: "Lisa Tran",
-    role: "Enterprise support lead",
-    avatar:
-      "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=240&q=80",
-    stated_goal:
-      "Reduce support ticket volume by 30% within 30 days using automated responses",
-    current_stage: "adoption",
-    completed_steps: [
-      "Set up automated response templates",
-      "Integrated with Zendesk",
-      "Trained the agent on top 20 FAQ topics",
-      "Deployed to 40% of incoming tickets"
-    ],
-    blockers: [],
-    last_contact:
-      "Ticket deflection is at 22% - 8% away from goal. Very happy with progress. Asked about expanding to more categories.",
-    health_signal: "engaged",
-    goal_achieved: false,
-    notes:
-      "Enterprise customer, data-driven, loves metrics, responds well to specific numbers and next steps"
-  },
-  {
-    customerId: "david",
-    name: "David Chen",
-    role: "Senior developer",
-    avatar:
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80",
-    stated_goal: "Build a full API integration between the platform and internal CRM",
-    current_stage: "expansion",
-    completed_steps: [
-      "Completed onboarding in 2 days",
-      "Set up all team permissions",
-      "Read through full API documentation",
-      "Built proof-of-concept integration locally"
-    ],
-    blockers: [
-      {
-        issue: "OAuth authentication failing in production environment",
-        resolution: "Not yet resolved",
-        date: "2025-04-11"
-      }
-    ],
-    last_contact:
-      "POC works locally but OAuth failing in production. Highly technical, investigating independently.",
-    health_signal: "engaged",
-    goal_achieved: false,
-    notes:
-      "Senior developer, very technical, prefers code examples over explanations, doesn't need hand-holding"
-  }
-];
+const SESSION_KEY = "cmaxx_operator";
+const MEMORY_TOGGLE_KEY = "cmaxx_use_memory";
 
-const demoPrompts = {
-  priya: "Hi, I'm still having trouble with the invoice import.",
-  james: "Hey, checking in.",
-  lisa: "How are we doing?",
-  david: "Still stuck on the OAuth issue."
-};
+function chatStorageKey(customerId) {
+  return `cmaxx_chat_${customerId}`;
+}
 
 export default function App() {
-  const [customerId, setCustomerId] = useState("priya");
-  const [memory, setMemory] = useState(customers[0]);
+  const [screen, setScreen] = useState("login");
+  const [operator, setOperator] = useState({
+    name: "",
+    email: "",
+    team: "Customer Success"
+  });
+  const [customerId, setCustomerId] = useState("");
+  const [customers, setCustomers] = useState([]);
+  const [memory, setMemory] = useState(emptyMemory());
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
-  const [useMemory, setUseMemory] = useState(true);
+  const [useMemory, setUseMemory] = useState(() => {
+    const saved = localStorage.getItem(MEMORY_TOGGLE_KEY);
+    return saved == null ? true : saved === "true";
+  });
   const [isSending, setIsSending] = useState(false);
   const [status, setStatus] = useState(null);
+  const [flowNotice, setFlowNotice] = useState("");
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const [sessionGoalAchieved, setSessionGoalAchieved] = useState(false);
+  const [formMode, setFormMode] = useState("create");
+  const [customerForm, setCustomerForm] = useState({
+    name: "",
+    role: "",
+    company: "",
+    email: "",
+  });
 
-  const customer = useMemo(
-    () => customers.find((item) => item.customerId === customerId) || customers[0],
-    [customerId]
-  );
+  const customer = useMemo(() => customers.find((item) => item.customerId === customerId) ?? null, [customers, customerId]);
   const successPlan = useMemo(() => buildSuccessPlan(memory), [memory]);
+  const latestAgentReply = useMemo(
+    () => [...messages].reverse().find((m) => m.role === "agent")?.text || "",
+    [messages]
+  );
   const safeBlockers = Array.isArray(memory.blockers) ? memory.blockers : [];
   const safeCompleted = Array.isArray(memory.completed_steps) ? memory.completed_steps : [];
+  const hasActiveCustomer = Boolean(customerId && customer);
+  const unresolvedBlockers = useMemo(
+    () => safeBlockers.filter((b) => !String(b.resolution || "").toLowerCase().includes("resolved") && !String(b.resolution || "").toLowerCase().includes("fixed") && String(b.resolution || "").toLowerCase() !== "done"),
+    [safeBlockers]
+  );
+  const journey = useMemo(() => buildJourneyState(memory, safeCompleted, unresolvedBlockers, messages), [memory, safeCompleted, unresolvedBlockers, messages]);
+  const messagesEndRef = useRef(null);
 
   const getApiUrl = (path) => `${apiBase}${path}`;
 
   useEffect(() => {
-    setMemory(customer);
-    setDraft("");
-    setMessages([
-      {
-        role: "agent",
-        text: `Hi ${customer.name.split(" ")[0]} - I am your Customer Success Agent. Tell me your 30-day goal and the blocker you want to solve first.`
+    try {
+      const saved = localStorage.getItem(SESSION_KEY);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (parsed?.name && parsed?.email) {
+        setOperator(parsed);
+        setScreen("workspace");
       }
-    ]);
+    } catch {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasActiveCustomer) {
+      setMemory(emptyMemory());
+      setMessages([]);
+      setSessionGoalAchieved(false);
+      return;
+    }
+
+    setSessionGoalAchieved(false);
+
+    setDraft("");
+
+    const savedChat = localStorage.getItem(chatStorageKey(customerId));
+    if (savedChat) {
+      try {
+        const parsed = JSON.parse(savedChat);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        } else {
+          setMessages([defaultGreeting(customer?.name || customerId)]);
+        }
+      } catch {
+        setMessages([defaultGreeting(customer?.name || customerId)]);
+      }
+    } else {
+      setMessages([defaultGreeting(customer?.name || customerId)]);
+    }
 
     const controller = new AbortController();
     fetch(getApiUrl(`/customer/${encodeURIComponent(customerId)}`), {
@@ -161,33 +109,108 @@ export default function App() {
       })
       .then((data) => {
         if (data && Object.keys(data).length > 0) {
-          setMemory({ ...customer, ...data });
+          setMemory({ ...emptyMemory(), ...data });
+
+          if (data.profile?.customerId) {
+            setCustomers((items) =>
+              items.map((item) =>
+                item.customerId === data.profile.customerId
+                  ? {
+                      ...item,
+                      name: data.profile.name || item.name,
+                      role: data.profile.role || item.role,
+                      company: data.profile.company || item.company,
+                      email: data.profile.email || item.email,
+                    }
+                  : item
+              )
+            );
+          }
         }
       })
       .catch(() => {
-        setMemory(customer);
+        setMemory(emptyMemory());
       });
 
     return () => controller.abort();
-  }, [customer, customerId]);
+  }, [customerId, hasActiveCustomer]);
 
   useEffect(() => {
-    fetch(getApiUrl("/status"))
-      .then((response) => response.json())
-      .then(setStatus)
-      .catch(() =>
-        setStatus({
-          mode: "demo_fallback",
-          integrations: { hindsight: "unknown", groq: "unknown" },
-          persistence: "unknown"
-        })
-      );
+    localStorage.setItem(MEMORY_TOGGLE_KEY, String(useMemory));
+  }, [useMemory]);
+
+  useEffect(() => {
+    if (!customerId) return;
+    localStorage.setItem(chatStorageKey(customerId), JSON.stringify(messages));
+  }, [customerId, messages]);
+
+  useEffect(() => {
+    async function fetchCustomers() {
+      try {
+        const response = await fetch(getApiUrl("/customers"));
+        if (!response.ok) throw new Error("Failed to fetch customers");
+        const data = await response.json();
+        const nextCustomers = Array.isArray(data.customers) ? data.customers : [];
+        setCustomers(nextCustomers);
+
+        if (!customerId && nextCustomers.length > 0) {
+          setCustomerId(nextCustomers[0].customerId);
+        }
+
+        if (nextCustomers.length === 0) {
+          setShowCreateCustomer(true);
+        }
+      } catch {
+        setCustomers([]);
+        setShowCreateCustomer(true);
+      }
+    }
+
+    fetchCustomers();
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function fetchStatus() {
+      try {
+        const response = await fetch(getApiUrl("/status"));
+        const data = await response.json();
+        if (active) setStatus(data);
+      } catch {
+        if (active) {
+          setStatus({
+            mode: "demo_fallback",
+            integrations: { hindsight: "unknown", groq: "unknown" },
+            persistence: "unknown"
+          });
+        }
+      }
+    }
+
+    fetchStatus();
+    const timer = setInterval(fetchStatus, 30_000);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sessionGoalAchieved && screen === "workspace") {
+      setScreen("complete");
+    }
+  }, [sessionGoalAchieved, screen]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, isSending]);
 
   async function sendMessage(event) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || isSending) return;
+    if (!text || isSending || !customerId) return;
 
     const previousMessages = messages;
     setMessages((items) => [...items, { role: "customer", text }]);
@@ -210,7 +233,11 @@ export default function App() {
 
       setMessages((items) => [...items, { role: "agent", text: data.reply }]);
       if (data.memory && Object.keys(data.memory).length > 0) {
-        setMemory({ ...customer, ...data.memory });
+        setMemory({ ...emptyMemory(), ...data.memory });
+      }
+
+      if (Boolean(data?.retainData?.goalAchieved)) {
+        setSessionGoalAchieved(true);
       }
     } catch (error) {
       const reason = error instanceof Error ? error.message : "Request failed";
@@ -226,22 +253,273 @@ export default function App() {
     }
   }
 
-  function loadDemoPrompt() {
-    setDraft(demoPrompts[customerId] || "");
+  function handleLoginSubmit(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const name = String(form.get("name") || "").trim();
+    const email = String(form.get("email") || "").trim();
+
+    if (!name || !email) return;
+
+    setOperator({
+      name,
+      email,
+      team: String(form.get("team") || "Customer Success")
+    });
+    localStorage.setItem(
+      SESSION_KEY,
+      JSON.stringify({
+        name,
+        email,
+        team: String(form.get("team") || "Customer Success")
+      })
+    );
+    setScreen("workspace");
+  }
+
+  function loadStarterPrompt() {
+    if (memory.stated_goal) {
+      setDraft(`Quick update on ${memory.stated_goal}. Here is what we tried and where we are blocked.`);
+      return;
+    }
+
+    setDraft("Hi, I need help setting a clear 30-day success goal and next actions.");
   }
 
   function clearConversation() {
     setDraft("");
-    setMessages([
-      {
-        role: "agent",
-        text: `Hi ${customer.name.split(" ")[0]} - I am your Customer Success Agent. Tell me your 30-day goal and the blocker you want to solve first.`
+    const next = [defaultGreeting(customer?.name || customerId || "there")];
+    setMessages(next);
+    if (customerId) {
+      localStorage.setItem(chatStorageKey(customerId), JSON.stringify(next));
+    }
+  }
+
+  function completeJourney() {
+    if (!journey.canComplete) {
+      setFlowNotice("Milestone is not ready yet. Resolve active blockers or capture more completed steps.");
+      return;
+    }
+    setFlowNotice("");
+    setSessionGoalAchieved(true);
+    setScreen("complete");
+  }
+
+  function restartJourney() {
+    setScreen("workspace");
+    setFlowNotice("");
+    setSessionGoalAchieved(false);
+    clearConversation();
+  }
+
+  function signOut() {
+    localStorage.removeItem(SESSION_KEY);
+    setOperator({ name: "", email: "", team: "Customer Success" });
+    setScreen("login");
+    setFlowNotice("");
+    setSessionGoalAchieved(false);
+  }
+
+  async function saveCustomer(event) {
+    event.preventDefault();
+    if (isCreatingCustomer) return;
+
+    const name = String(customerForm.name || "").trim();
+    const role = String(customerForm.role || "").trim();
+    const company = String(customerForm.company || "").trim();
+    const email = String(customerForm.email || "").trim();
+
+    if (!name) return;
+
+    setIsCreatingCustomer(true);
+    try {
+      const method = formMode === "edit" && customerId ? "PATCH" : "POST";
+      const endpoint = method === "PATCH"
+        ? getApiUrl(`/customers/${encodeURIComponent(customerId)}`)
+        : getApiUrl("/customers");
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, role, company, email })
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to create customer");
+
+      const created = data.customer;
+      setCustomers((items) =>
+        [...items.filter((c) => c.customerId !== created.customerId), created].sort((a, b) =>
+          String(a.name || a.customerId).localeCompare(String(b.name || b.customerId))
+        )
+      );
+      setCustomerId(created.customerId);
+      setShowCreateCustomer(false);
+      setFormMode("create");
+      setCustomerForm({ name: "", role: "", company: "", email: "" });
+      setFlowNotice("");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unknown error";
+      setFlowNotice(`Could not save customer (${reason}).`);
+    } finally {
+      setIsCreatingCustomer(false);
+    }
+  }
+
+  function startCreateCustomer() {
+    setFormMode("create");
+    setCustomerForm({ name: "", role: "", company: "", email: "" });
+    setShowCreateCustomer(true);
+    setFlowNotice("");
+  }
+
+  function startEditCustomer() {
+    if (!customer) return;
+    setFormMode("edit");
+    setCustomerForm({
+      name: customer.name || "",
+      role: customer.role || "",
+      company: customer.company || "",
+      email: customer.email || "",
+    });
+    setShowCreateCustomer(true);
+    setFlowNotice("");
+  }
+
+  async function deleteCurrentCustomer() {
+    if (!customerId) return;
+    const confirmed = window.confirm("Delete this customer from registry? Their memory bank may still exist in Hindsight.");
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(getApiUrl(`/customers/${encodeURIComponent(customerId)}`), {
+        method: "DELETE",
+      });
+
+      if (!response.ok && response.status !== 404) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.error || "Delete failed");
       }
-    ]);
+
+      setCustomers((items) => {
+        const next = items.filter((c) => c.customerId !== customerId);
+        setCustomerId(next[0]?.customerId || "");
+        return next;
+      });
+      setShowCreateCustomer(false);
+      setFormMode("create");
+      setCustomerForm({ name: "", role: "", company: "", email: "" });
+      setFlowNotice("");
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : "Unknown error";
+      setFlowNotice(`Could not delete customer (${reason}).`);
+    }
+  }
+
+  if (screen === "login") {
+    return (
+      <main className="screen login-screen">
+        <div className="orb orb-a" />
+        <div className="orb orb-b" />
+        <section className="clay-card login-card">
+          <p className="eyebrow">CmaxX Memory OS</p>
+          <h1>Ship customer outcomes, not just conversations.</h1>
+          <p className="subtle">
+            This workspace keeps context across conversations, avoids repeated failed fixes,
+            and guides each account to first value.
+          </p>
+
+          <form onSubmit={handleLoginSubmit} className="grid-form">
+            <label>
+              Operator Name
+              <input name="name" placeholder="Ariana Patel" required />
+            </label>
+            <label>
+              Work Email
+              <input name="email" type="email" placeholder="ariana@cmaxx.ai" required />
+            </label>
+            <label>
+              Team
+              <select name="team" defaultValue="Customer Success">
+                <option>Customer Success</option>
+                <option>Support Ops</option>
+                <option>Onboarding</option>
+                <option>Growth</option>
+              </select>
+            </label>
+            <label>
+              Workspace Password
+              <input name="password" type="password" placeholder="Enter secure passphrase" required />
+            </label>
+
+            <button type="submit" className="button-hero">Enter Workspace</button>
+          </form>
+          <div className="status-row">
+            <span className="pill">Claymorphism UI</span>
+            <span className="pill">Live memory aware</span>
+            <span className="pill">Ready on mobile</span>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (screen === "complete") {
+    return (
+      <main className="screen complete-screen">
+        <section className="clay-card complete-card">
+          <p className="eyebrow">Journey Complete</p>
+          <h1>Milestone reached for {customer?.name || customerId || "this customer"}.</h1>
+          <p className="subtle">Context, success plan, and latest response are stored and ready for the next touchpoint.</p>
+
+          <div className="summary-grid">
+            <div>
+              <h3>Goal</h3>
+              <p>{memory.stated_goal || "No goal captured"}</p>
+            </div>
+            <div>
+              <h3>Current Stage</h3>
+              <p>{String(memory.current_stage || "onboarding").replace("_", " ")}</p>
+            </div>
+            <div>
+              <h3>Health</h3>
+              <p>{String(memory.health_signal || "engaged").replace("_", " ")}</p>
+            </div>
+            <div>
+              <h3>Latest Agent Response</h3>
+              <p>{latestAgentReply || "No reply generated yet"}</p>
+            </div>
+          </div>
+
+          <div className="action-row">
+            <button type="button" onClick={restartJourney}>Back to Workspace</button>
+            <button type="button" className="button-ghost" onClick={signOut}>Sign out</button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
-    <main className="app-shell">
+    <main className="screen workspace-screen">
+      <header className="workspace-top">
+        <div>
+          <p className="eyebrow">Operator</p>
+          <h2>{operator.name || "Guest"} - {operator.team}</h2>
+        </div>
+        <div className="status-row">
+          <span className="pill">{operator.email || "No email"}</span>
+          {status && (
+            <span className="pill">
+              {status.mode === "real_integrations" ? "Live integrations" : "Demo fallback"}
+            </span>
+          )}
+          <span className="pill">Journey {journey.progress}%</span>
+          <button type="button" className="button-ghost" onClick={signOut}>Sign out</button>
+        </div>
+      </header>
+
+      <section className="app-shell">
       <section className="chat-pane">
         <header className="topbar">
           <div className="brand">
@@ -256,14 +534,20 @@ export default function App() {
               {status.mode === "real_integrations" ? "Hindsight + Groq live" : "Demo fallback"}
             </span>
           )}
-          <label className="memory-switch">
-            <span>{useMemory ? "With memory" : "Without memory"}</span>
+          <label className="memory-toggle">
             <input
               type="checkbox"
               checked={useMemory}
               onChange={(event) => setUseMemory(event.target.checked)}
             />
+            <span>{useMemory ? "Memory on" : "Memory off"}</span>
           </label>
+          <div className="progress-wrap" aria-label="Journey progress">
+            <div className="progress-label">Milestone Progress</div>
+            <div className="progress-track">
+              <div className="progress-fill" style={{ width: `${journey.progress}%` }} />
+            </div>
+          </div>
         </header>
 
         <div className="customer-strip">
@@ -272,50 +556,148 @@ export default function App() {
             <select
               value={customerId}
               onChange={(event) => setCustomerId(event.target.value)}
+              disabled={customers.length === 0}
             >
-              {customers.map((item) => (
+              {customers.length === 0 ? (
+                <option value="">No customers yet</option>
+              ) : customers.map((item) => (
                 <option value={item.customerId} key={item.customerId}>
-                  {item.name}
+                  {item.name || item.customerId}
                 </option>
               ))}
             </select>
           </label>
-          <button className="secondary" type="button" onClick={loadDemoPrompt}>
-            Load demo line
-          </button>
-          <button className="quiet" type="button" onClick={clearConversation}>
-            Reset chat
-          </button>
-        </div>
-
-        <div className="customer-hero">
-          <img src={customer.avatar} alt="" />
-          <div>
-            <strong>{customer.name}</strong>
-            <span>{customer.role}</span>
+          <div className="customer-actions">
+            <button
+              className="secondary"
+              type="button"
+              onClick={() => {
+                if (showCreateCustomer) {
+                  setShowCreateCustomer(false);
+                } else {
+                  startCreateCustomer();
+                }
+              }}
+            >
+              {showCreateCustomer ? "Close form" : "Add customer"}
+            </button>
+            <button className="quiet" type="button" onClick={startEditCustomer} disabled={!hasActiveCustomer}>
+              Edit customer
+            </button>
+            <button className="danger" type="button" onClick={deleteCurrentCustomer} disabled={!hasActiveCustomer}>
+              Delete customer
+            </button>
+            <button className="quiet" type="button" onClick={loadStarterPrompt} disabled={!customerId}>
+              Load starter line
+            </button>
+            <button className="quiet" type="button" onClick={clearConversation} disabled={!customerId}>
+              Reset chat
+            </button>
           </div>
         </div>
 
-        <div className="messages" aria-live="polite">
-          {messages.map((message, index) => (
-            <div className={`bubble ${message.role}`} key={`${message.role}-${index}`}>
-              {message.text}
+        {showCreateCustomer && (
+          <form className="create-customer" onSubmit={saveCustomer}>
+            <div className="create-customer-head">
+              <strong>{formMode === "edit" ? "Edit customer" : "Create customer"}</strong>
+              <button type="button" className="quiet" onClick={() => setShowCreateCustomer(false)}>Close</button>
             </div>
-          ))}
-          {isSending && <div className="bubble agent">Thinking with the customer history...</div>}
-        </div>
+            <label>
+              Name
+              <input
+                name="name"
+                required
+                placeholder="Priya Sharma"
+                value={customerForm.name}
+                onChange={(event) => setCustomerForm((f) => ({ ...f, name: event.target.value }))}
+              />
+            </label>
+            <label>
+              Role
+              <input
+                name="role"
+                placeholder="Operations Manager"
+                value={customerForm.role}
+                onChange={(event) => setCustomerForm((f) => ({ ...f, role: event.target.value }))}
+              />
+            </label>
+            <label>
+              Company
+              <input
+                name="company"
+                placeholder="Acme Inc"
+                value={customerForm.company}
+                onChange={(event) => setCustomerForm((f) => ({ ...f, company: event.target.value }))}
+              />
+            </label>
+            <label>
+              Email
+              <input
+                name="email"
+                type="email"
+                placeholder="priya@acme.com"
+                value={customerForm.email}
+                onChange={(event) => setCustomerForm((f) => ({ ...f, email: event.target.value }))}
+              />
+            </label>
+            <button type="submit" disabled={isCreatingCustomer}>
+              {isCreatingCustomer
+                ? (formMode === "edit" ? "Saving..." : "Creating...")
+                : (formMode === "edit" ? "Save customer" : "Create customer")}
+            </button>
+            {formMode === "create" && (
+              <button type="button" className="quiet" onClick={startCreateCustomer}>
+                Clear form
+              </button>
+            )}
+          </form>
+        )}
 
-        <form className="composer" onSubmit={sendMessage}>
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Type a customer message..."
-            aria-label="Customer message"
-          />
-          <button type="submit" disabled={isSending}>
-            Send
-          </button>
-        </form>
+        {hasActiveCustomer ? (
+          <>
+            <div className="customer-hero">
+              <img src={avatarForCustomer(customer?.customerId || "") } alt="" />
+              <div>
+                <strong>{customer?.name || customerId}</strong>
+                <span>{customer?.role || "Role not set"}</span>
+              </div>
+            </div>
+
+            <div className="messages" aria-live="polite">
+              {messages.map((message, index) => (
+                <div className={`bubble ${message.role}`} key={`${message.role}-${index}`}>
+                  {message.text}
+                </div>
+              ))}
+              {isSending && <div className="bubble agent">Thinking with the customer history...</div>}
+              <div ref={messagesEndRef} />
+            </div>
+
+            <form className="composer" onSubmit={sendMessage}>
+              <input
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Type a customer message..."
+                aria-label="Customer message"
+              />
+              <button type="submit" disabled={isSending}>
+                Send
+              </button>
+            </form>
+
+            <div className="journey-footer">
+              <button type="button" className="secondary" onClick={completeJourney} disabled={!journey.canComplete && !memory.goal_achieved}>
+                Mark Milestone Complete
+              </button>
+              {flowNotice && <p className="flow-notice">{flowNotice}</p>}
+            </div>
+          </>
+        ) : (
+          <div className="empty-chat-state">
+            <h3>No customer selected</h3>
+            <p>Create your first customer above to start a real memory-backed conversation flow.</p>
+          </div>
+        )}
       </section>
 
       <aside className="memory-pane">
@@ -332,12 +714,19 @@ export default function App() {
         )}
         {!useMemory && (
           <div className="memory-off-note">
-            Memory is off for the next reply. The agent will not call Hindsight recall or retain.
+            Memory is off for this session. Replies will not use recall or retention.
           </div>
         )}
-
-        <MemoryBlock title="Goal">{memory.stated_goal}</MemoryBlock>
-        <MemoryBlock title="Stage">{memory.current_stage.replace("_", " ")}</MemoryBlock>
+        <MemoryBlock title="Goal">{memory.stated_goal || "No goal captured yet"}</MemoryBlock>
+        <MemoryBlock title="Stage">{String(memory.current_stage || "onboarding").replace("_", " ")}</MemoryBlock>
+        <MemoryBlock title="Milestone Rules">
+          <ul>
+            <li>Goal present: {memory.stated_goal ? "Yes" : "No"}</li>
+            <li>Completed steps: {safeCompleted.length}</li>
+            <li>Open blockers: {unresolvedBlockers.length}</li>
+            <li>Ready to complete: {journey.canComplete ? "Yes" : "No"}</li>
+          </ul>
+        </MemoryBlock>
         <MemoryBlock title="Success Plan">
           <div className="plan-grid">
             <span>Health</span>
@@ -349,11 +738,15 @@ export default function App() {
           </div>
         </MemoryBlock>
         <MemoryBlock title="Completed">
-          <ul>
-            {safeCompleted.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ul>
+          {safeCompleted.length ? (
+            <ul>
+              {safeCompleted.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ul>
+          ) : (
+            "No completed milestones yet."
+          )}
         </MemoryBlock>
         <MemoryBlock title="Past Blockers">
           {safeBlockers.length ? (
@@ -369,9 +762,10 @@ export default function App() {
             "No blockers recorded."
           )}
         </MemoryBlock>
-        <MemoryBlock title="Last Contact">{memory.last_contact}</MemoryBlock>
-        <MemoryBlock title="Notes">{memory.notes}</MemoryBlock>
+        <MemoryBlock title="Last Contact">{memory.last_contact || "Not available yet"}</MemoryBlock>
+        <MemoryBlock title="Notes">{memory.notes || "No notes yet"}</MemoryBlock>
       </aside>
+      </section>
     </main>
   );
 }
@@ -388,9 +782,26 @@ function toGroqHistory(messages) {
 
 function buildSuccessPlan(memory) {
   const blockers = Array.isArray(memory.blockers) ? memory.blockers : [];
-  const blockerText = blockers.map((blocker) => blocker.issue).join(" ").toLowerCase();
+  const unresolved = blockers.filter((b) => !String(b.resolution || "").toLowerCase().includes("resolved") && !String(b.resolution || "").toLowerCase().includes("fixed"));
+  const blockerText = unresolved.map((blocker) => blocker.issue).join(" ").toLowerCase();
   const goal = (memory.stated_goal || "").toLowerCase();
   const health = (memory.health_signal || "engaged").replace("_", " ");
+
+  if (!goal) {
+    return {
+      health,
+      timeToValue: "Goal not captured yet",
+      nextBestAction: "Capture a specific 30-day success target"
+    };
+  }
+
+  if (unresolved.length > 2) {
+    return {
+      health,
+      timeToValue: "Risky path due to multiple blockers",
+      nextBestAction: "Prioritize top blocker and defer lower-priority tasks"
+    };
+  }
 
   if (blockerText.includes("invoice") || blockerText.includes("csv")) {
     return {
@@ -431,6 +842,27 @@ function buildSuccessPlan(memory) {
   };
 }
 
+function emptyMemory() {
+  return {
+    stated_goal: "",
+    current_stage: "onboarding",
+    completed_steps: [],
+    blockers: [],
+    last_contact: "",
+    health_signal: "engaged",
+    goal_achieved: false,
+    notes: "",
+  };
+}
+
+function avatarForCustomer(seed) {
+  const code = Math.abs(
+    Array.from(String(seed || 'customer')).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+  );
+  const id = (code % 70) + 1;
+  return `https://i.pravatar.cc/160?img=${id}`;
+}
+
 function MemoryBlock({ title, children }) {
   return (
     <section className="memory-block">
@@ -438,5 +870,38 @@ function MemoryBlock({ title, children }) {
       <div>{children}</div>
     </section>
   );
+}
+
+function buildJourneyState(memory, completedSteps, unresolvedBlockers, messages) {
+  const stage = String(memory.current_stage || "onboarding");
+  const baseByStage = {
+    onboarding: 20,
+    adoption: 50,
+    value_achieved: 82,
+    expansion: 95
+  };
+
+  let progress = baseByStage[stage] ?? 20;
+  progress += Math.min(completedSteps.length * 6, 18);
+  progress -= Math.min(unresolvedBlockers.length * 9, 24);
+  if (memory.goal_achieved) progress = 100;
+
+  progress = Math.max(0, Math.min(100, progress));
+
+  const hasGoal = Boolean(memory.stated_goal);
+  const hasConversationDepth = messages.filter((m) => m.role === "agent").length >= 2;
+  const hasEnoughSteps = completedSteps.length >= 2;
+  const blockersManaged = unresolvedBlockers.length <= 1;
+
+  const canComplete = Boolean(memory.goal_achieved) || (hasGoal && hasConversationDepth && hasEnoughSteps && blockersManaged && progress >= 70);
+
+  return { progress, canComplete };
+}
+
+function defaultGreeting(name) {
+  return {
+    role: "agent",
+    text: `Hi ${String(name || "there").split(" ")[0]} - I am your Customer Success Agent. Tell me your 30-day goal and the blocker you want to solve first.`
+  };
 }
 

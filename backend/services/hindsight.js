@@ -8,10 +8,18 @@
 
 import { HindsightClient } from '@vectorize-io/hindsight-client';
 
+export function isHindsightConfigured() {
+  return Boolean(process.env.HINDSIGHT_API_KEY && process.env.HINDSIGHT_BASE_URL);
+}
+
 // ─── Client singleton (lazy) ─────────────────────────────────────────────────
 // Initialized on first use so dotenv.config() in server.js has already run.
 let _client = null;
 function getClient() {
+  if (!isHindsightConfigured()) {
+    throw new Error('Hindsight is not configured.');
+  }
+
   if (!_client) {
     _client = new HindsightClient({
       baseUrl: process.env.HINDSIGHT_BASE_URL,
@@ -31,6 +39,10 @@ function bankId(customerId) {
  * Called once on server startup just to validate connectivity.
  */
 export async function ensureBankExists() {
+  if (!isHindsightConfigured()) {
+    return;
+  }
+
   // We'll lazily create per-customer banks on first retain/recall.
   // Here we just do a lightweight ping by trying to list banks.
   // If the SDK doesn't expose a list endpoint, we rely on createBank being idempotent.
@@ -42,6 +54,10 @@ export async function ensureBankExists() {
  * Hindsight Cloud's createBank is idempotent — safe to call every time.
  */
 export async function ensureCustomerBank(customerId) {
+  if (!isHindsightConfigured()) {
+    return;
+  }
+
   try {
     await getClient().createBank(bankId(customerId), {
       name: `Customer ${customerId}`,
@@ -69,6 +85,10 @@ and their overall health signal. Prioritize goal-relevant information and time-s
  * Falls back gracefully if the bank doesn't exist yet (new customer).
  */
 export async function recallCustomer(customerId, query = 'customer history goals blockers progress') {
+  if (!isHindsightConfigured()) {
+    return [];
+  }
+
   await ensureCustomerBank(customerId);
 
   try {
@@ -93,6 +113,10 @@ export async function recallCustomer(customerId, query = 'customer history goals
  * @param {object} metadata   — optional structured tags (stage, health, etc.)
  */
 export async function retainForCustomer(customerId, content, metadata = {}) {
+  if (!isHindsightConfigured()) {
+    return;
+  }
+
   await ensureCustomerBank(customerId);
 
   await getClient().retain(bankId(customerId), content, {
@@ -107,6 +131,10 @@ export async function retainForCustomer(customerId, content, metadata = {}) {
  * Used by GET /customer/:id
  */
 export async function listCustomerMemories(customerId) {
+  if (!isHindsightConfigured()) {
+    return [];
+  }
+
   await ensureCustomerBank(customerId);
 
   try {
