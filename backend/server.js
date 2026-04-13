@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { chatRouter } from './routes/chat.js';
 import { customerRouter } from './routes/customer.js';
-import { ensureBankExists } from './services/hindsight.js';
+import { customersRouter } from './routes/customers.js';
+import { ensureBankExists, isHindsightConfigured } from './services/hindsight.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,6 +15,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const frontendDistPath = join(__dirname, '../frontend/dist');
 
 // ─── Middleware ─────────────────────────────────────────────────────────────
 app.use(cors());
@@ -28,33 +30,54 @@ app.use((req, _res, next) => {
 // ─── Routes ─────────────────────────────────────────────────────────────────
 app.use('/chat', chatRouter);
 app.use('/customer', customerRouter);
-
-// ─── Static frontend ────────────────────────────────────────────────────────
-app.use(express.static(join(__dirname, '../Frontend')));
+app.use('/customers', customersRouter);
 
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Integration status for frontend diagnostics.
+app.get('/status', (_req, res) => {
+  const hindsightConfigured = Boolean(process.env.HINDSIGHT_API_KEY && process.env.HINDSIGHT_BASE_URL);
+  const groqConfigured = Boolean(process.env.GROQ_API_KEY);
+  const usingRealIntegrations = hindsightConfigured && groqConfigured;
+
+  res.json({
+    mode: usingRealIntegrations ? 'real_integrations' : 'demo_fallback',
+    integrations: {
+      hindsight: hindsightConfigured ? 'configured' : 'missing_key',
+      groq: groqConfigured ? 'configured' : 'missing_key',
+    },
+    persistence: hindsightConfigured ? 'hindsight_cloud' : 'unknown',
+  });
+});
+
+// ─── Static frontend (production) ──────────────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(frontendDistPath));
+
+  app.get('*', (_req, res) => {
+    res.sendFile(join(frontendDistPath, 'index.html'));
+  });
+}
+
 // ─── Startup ─────────────────────────────────────────────────────────────────
 async function start() {
-  // Validate required env vars
-  const required = ['HINDSIGHT_API_KEY', 'HINDSIGHT_BASE_URL', 'GROQ_API_KEY'];
-  const missing = required.filter((k) => !process.env[k]);
-  if (missing.length > 0) {
-    console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
-    console.error('   Copy .env.example → .env and fill in your keys.');
-    process.exit(1);
+  if (isHindsightConfigured()) {
+    // Validate connectivity when Hindsight keys exist.
+    try {
+      await ensureBankExists();
+      console.log('✅ Hindsight memory bank ready');
+    } catch (err) {
+      console.warn('⚠️ Hindsight unavailable, running in demo fallback mode:', err.message);
+    }
+  } else {
+    console.warn('⚠️ HINDSIGHT keys missing, running in demo fallback mode.');
   }
 
-  // Pre-create the global customer-success bank in Hindsight if it doesn't exist
-  try {
-    await ensureBankExists();
-    console.log('✅ Hindsight memory bank ready');
-  } catch (err) {
-    console.error('❌ Could not connect to Hindsight:', err.message);
-    process.exit(1);
+  if (!process.env.GROQ_API_KEY) {
+    console.warn('⚠️ GROQ_API_KEY missing, using local fallback responses.');
   }
 
   app.listen(PORT, () => {

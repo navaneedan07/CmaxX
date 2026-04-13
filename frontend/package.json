@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 5173 --strictPort --open",
-    "dev:clean": "(kill-port 5173 || echo Port 5173 already free) && vite --port 5173 --strictPort --open",
+    "dev:clean": "vite --port 5173 --strictPort --open",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

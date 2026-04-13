@@ -1,3 +1,5 @@
+import { normalizeRetainData } from './retainSchema.js';
+
 /**
  * groq.js
  * Wrapper around the Groq API using the openai-compatible endpoint.
@@ -12,6 +14,30 @@
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const MODEL = 'qwen/qwen3-32b';
 const TIMEOUT_MS = 15_000;
+
+function isGroqConfigured() {
+  return Boolean(process.env.GROQ_API_KEY);
+}
+
+function buildFallbackReply(userMessage, useMemory) {
+  const opener = useMemory
+    ? 'Thanks for the update. I reviewed your context and can help with a concrete next step.'
+    : 'Thanks for the update. Since memory is off, I will treat this as a fresh conversation.';
+
+  return `${opener} Based on what you shared: "${userMessage}". Let's break this into one immediate action, one validation step, and one follow-up checkpoint so you can make progress today.`;
+}
+
+function buildFallbackRetainData(userMessage) {
+  return {
+    summary: `Customer message received: ${userMessage}`,
+    stage: 'adoption',
+    health: 'engaged',
+    newBlocker: null,
+    blockerResolved: null,
+    goalMentioned: null,
+    goalAchieved: false,
+  };
+}
 
 /**
  * Build the Customer Success Agent system prompt.
@@ -116,7 +142,7 @@ async function callGroq(systemPrompt, conversationHistory, userMessage) {
  */
 function parseGroqResponse(rawText) {
   const retainMatch = rawText.match(/<retain>([\s\S]*?)<\/retain>/i);
-  const reply = rawText
+  let reply = rawText
     .replace(/<think>[\s\S]*?<\/think>/gi, '')   // strip qwen3 reasoning chain
     .replace(/<retain>[\s\S]*?<\/retain>/gi, '')  // strip retain block
     .trim();
@@ -124,11 +150,22 @@ function parseGroqResponse(rawText) {
   let retainData = null;
   if (retainMatch) {
     try {
-      retainData = JSON.parse(retainMatch[1].trim());
+      const parsed = JSON.parse(retainMatch[1].trim());
+      const normalized = normalizeRetainData(parsed);
+      if (normalized.valid) {
+        retainData = normalized.data;
+      } else {
+        console.warn(`[Groq] Dropping invalid <retain> payload (${normalized.reason})`);
+      }
     } catch {
-      console.warn('[Groq] Could not parse <retain> JSON block — saving raw text instead');
-      retainData = { summary: retainMatch[1].trim() };
+      console.warn('[Groq] Could not parse <retain> JSON block — skipping memory mutation');
     }
+  }
+
+  if (!reply) {
+    reply = retainData?.summary
+      ? `Thanks for the update. ${retainData.summary}`
+      : "Thanks for the update. Let's take the next step together.";
   }
 
   return { reply, retainData };
@@ -139,6 +176,13 @@ function parseGroqResponse(rawText) {
  * Retries once on transient Groq errors before giving up.
  */
 export async function askGroq(memories, conversationHistory, userMessage, customerId, useMemory = true) {
+  if (!isGroqConfigured()) {
+    return {
+      reply: buildFallbackReply(userMessage, useMemory),
+      retainData: buildFallbackRetainData(userMessage),
+    };
+  }
+
   const systemPrompt = buildSystemPrompt(memories, customerId, useMemory);
 
   let lastErr;
