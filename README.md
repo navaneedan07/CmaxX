@@ -151,7 +151,7 @@ This repo includes a GitHub Actions workflow at `.github/workflows/ci.yml` that 
 
 Use this as a release gate before deploying.
 
-## Demo Script
+## Demo
 
 1. Select Priya.
 2. Turn memory off and send: `Hi, I'm still having trouble with the invoice import.`
